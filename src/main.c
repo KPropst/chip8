@@ -8,7 +8,7 @@ int main() {
    uint16_t I = 0;      // Store Memory Addresses
    uint8_t delay;
    uint8_t sound;
-   uint16_t pc;         // Program Counter
+   uint16_t pc = 0x200; // Program Counter
    /* ------------------------------------------------------------ */
    /* Display */
    /* ------------------------------------------------------------ */
@@ -67,8 +67,15 @@ int main() {
       //}
 
    int pixel_old;
+
+   /* Load ROM into memory */
    while (fread(buffer, sizeof(buffer), 1, file)) {
-       //printf("%02X ", buffer[0]);
+       memory[pc] = buffer[0];
+       pc++;      
+   }
+   /* Read Memory */
+   for (pc = 0x200; pc < 4095; pc++) {
+        buffer[0] = memory[pc];
      SDL_Event event;
      /* Input Handling */
      while (SDL_PollEvent(&event))
@@ -113,23 +120,14 @@ int main() {
                 y = (0xF0 & buffer[0]) / 16;
                 N = 0xF & buffer[0];
                 printf("Draw sprite at v[%d] and v[%d] at height %d\n", x, y, N);
+                printf("Sprite: %d", v[I]);
                 for (int j = v[y]; j < v[y]+N; j++) {
                     for (int i = v[x]; i < v[x]+8; i++) {
                         pixel_old = pixels[(j*width)+i];          
-                        //pixels[(j*width)+i] = /*((pixel_old/99999) ^ */(((v[I] >> ((v[x]+7)-i)) & 1))/*)*/*99999;
-                        pixels[(j*width)+i] = 99999;
+                        pixels[(j*width)+i] = ((pixel_old/99999) ^ (((memory[I] >> (7 - (i - v[x]))) & 1)))*99999;
                     }
+                    I++;
                 }
-
-
-
-                //for (int i = v[buffer[0] & 15]; i < buffer[0] - (buffer[0] & 15); i++) {
-                //    for (int j = v[buffer2[0]]*8; j < 8; j++) {
-                //        // TODO: This is dumb. calculate  j + (y*width) only once.
-                //       pixels[j + (((i > 32) ? i - 32 : i)+(y*width))] = memory[I+i+j]+99999999;  
-                //       printf("y: %d\n", y);
-                //    }
-                //} 
                 mode = -1;
                 break;
            default: 
@@ -139,6 +137,6 @@ int main() {
        }
         SDL_UpdateWindowSurface(window);
         usleep(50000);
-    }
+   }
    /* ------------------------------------------------------------ */
 }
