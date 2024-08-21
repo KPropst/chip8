@@ -12,8 +12,15 @@ int main() {
    /* ------------------------------------------------------------ */
    /* Display */
    /* ------------------------------------------------------------ */
-   // bool screen[64*32];
-   uint8_t screen[256];
+   uint8_t screen[256] = {0, 0, 0, 0, 0, 0, 0, 0, 
+                          0, 0, 0, 0, 0, 0, 0, 0, 
+                          0, 0, 0, 0, 0, 0, 0, 0, 
+                          0, 0, 0, 0, 0, 0, 0, 0, 
+                          0, 0, 0, 0, 0, 0, 0, 0, 
+                          0, 0, 0, 0, 0, 0, 0, 0, 
+                          0, 0, 0, 0, 0, 0, 0, 0, 
+                          0, 0, 0, 0, 0, 0, 0, 0, 
+                          0, 0, 0, 0, 0, 0, 0, 0, }; // Each bit represents an 8 pixel wide row on the screen
    /* ------------------------------------------------------------ */
    /* File Init */
    /* ------------------------------------------------------------ */
@@ -66,7 +73,7 @@ int main() {
       //  }
       //}
 
-   int pixel_old;
+   int new_pixel;
 
    /* Load ROM into memory */
    while (fread(buffer, sizeof(buffer), 1, file)) {
@@ -93,12 +100,13 @@ int main() {
                 else if (buffer[0] >= 0x60 && buffer[0] <= 0x6F)    {mode = 0x60; buffer2[0] = buffer[0] - 0x60;}
                 else if (buffer[0] >= 0xA0 && buffer[0] <= 0xAF)    {mode = 0xA0; buffer2[0] = buffer[0] - 0xA0;}
                 else if (buffer[0] >= 0xD0 && buffer[0] <= 0xDF)    {mode = 0xD0; buffer2[0] = buffer[0] - 0xD0;}
+                else if (buffer[0] >= 0x10 && buffer[0] <= 0x1F)    {mode = 0x10; buffer2[0] = buffer[0] - 0x10;}
                 break;
            case 0x00: 
-                printf("Clear Screen\n");
                 if (buffer[0] == 0xE0) {
-                    for (int i = 0; i < 64*32; i++) {
-                        pixels[i] = 0;
+                printf("Clear Screen\n");
+                    for (int i = 0; i < 256; i++) {
+                        screen[i] = 0;
                     }
                 }
                 else if (buffer[0] == 0xEE) printf("RETURN FROM SUB\n");
@@ -116,18 +124,29 @@ int main() {
                 break;
             case 0xD0: /* Dxyn */
                 // Start at Coordinates Vx, Vy
-                x = 0xF & buffer2[0];
+                x = (0xF & buffer2[0]) / 8;
                 y = (0xF0 & buffer[0]) / 16;
                 N = 0xF & buffer[0];
-                printf("Draw sprite at v[%d] and v[%d] at height %d\n", x, y, N);
-                printf("Sprite: %d", v[I]);
-                for (int j = v[y]; j < v[y]+N; j++) {
-                    for (int i = v[x]; i < v[x]+8; i++) {
-                        pixel_old = pixels[(j*width)+i];          
-                        pixels[(j*width)+i] = ((pixel_old/99999) ^ (((memory[I] >> (7 - (i - v[x]))) & 1)))*99999;
-                    }
+                printf("Draw sprite at %d and %d at height %d\n", v[x]/8, v[y], N);
+                printf("Array Index Position: %d\n", (v[y]*8)+(v[x]/8));
+                //printf("Sprite: %d", memory[]);
+                for (int i = v[Y]; i < v[Y]+N; i++) {
+                    screen[(8*i)+(v[x]/8)] = memory[I] ^ screen[(8*i)+(v[x]/8)];
                     I++;
                 }
+                //for (int j = v[y]; j < v[y]+N; j++) {
+                //    screen[(v[x]/8)+(j*8)] = memory[I] ^ screen[(v[x]/8)+(j*8)];
+                //    for (int i = v[x]; i < v[x]+8; i++) {
+                //        pixel_old = pixels[(j*width)+i];          
+                //        pixels[(j*width)+i] = ((pixel_old/99999) ^ (((memory[I] >> (7 - (i - v[x]))) & 1)))*99999;
+                //    }
+                //    I++;
+                //}
+                mode = -1;
+                break;
+           case 0x10:
+                printf("Jump to address %02X\n", ((0xF & buffer2[0])*256) + buffer[0]);
+                pc = ((0xF & buffer2[0])*256) + buffer[0];
                 mode = -1;
                 break;
            default: 
@@ -135,6 +154,25 @@ int main() {
 
         
        }
+       int j = 7;
+       int height_offset = 0;
+       int last_border = 0;
+       for (int i = 0; i < (WIDTH*HEIGHT); i+=SCALE) {
+            if (j == -1) j = 7;
+            if (last_border == WIDTH) {
+                height_offset += WIDTH;
+                i += WIDTH;
+                last_border = 0;
+            }
+            new_pixel = ((screen[(i-height_offset) / (8*SCALE)] >> j) & 1)*99999;
+            pixels[i] = new_pixel;
+            pixels[i+1] = new_pixel;
+            pixels[i+1+WIDTH] = new_pixel;
+            pixels[i+WIDTH] = new_pixel;
+            j--;
+            last_border+=SCALE;
+       }
+
         SDL_UpdateWindowSurface(window);
         usleep(50000);
    }
