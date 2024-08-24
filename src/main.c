@@ -29,8 +29,9 @@ int main() {
    u_char buffer2[1];
    int16_t mode = -1;
 
-   file = fopen("1-chip8-logo.ch8", "rb");
+   //file = fopen("1-chip8-logo.ch8", "rb");
    //file = fopen("2-ibm-logo.ch8", "rb");
+   file = fopen("3-corax+.ch8", "rb");
    if (file == NULL) {
        printf("Error: Cannot open file\n");
        return 1;
@@ -81,7 +82,7 @@ int main() {
        pc++;      
    }
    /* Read Memory */
-   for (pc = 0x200; pc < 4095; pc++) {
+   for (pc = 0x200; pc < 4095; pc += 0) {
         buffer[0] = memory[pc];
      SDL_Event event;
      /* Input Handling */
@@ -101,6 +102,9 @@ int main() {
                 else if (buffer[0] >= 0xA0 && buffer[0] <= 0xAF)    {mode = 0xA0; buffer2[0] = buffer[0] - 0xA0;}
                 else if (buffer[0] >= 0xD0 && buffer[0] <= 0xDF)    {mode = 0xD0; buffer2[0] = buffer[0] - 0xD0;}
                 else if (buffer[0] >= 0x10 && buffer[0] <= 0x1F)    {mode = 0x10; buffer2[0] = buffer[0] - 0x10;}
+                else if (buffer[0] >= 0x30 && buffer[0] <= 0x3F)    {mode = 0x30; buffer2[0] = buffer[0] - 0x30;}
+                else if (buffer[0] >= 0x70 && buffer[0] <= 0x7F)    {mode = 0x70; buffer2[0] = buffer[0] - 0x70;}
+                pc++;
                 break;
            case 0x00: 
                 if (buffer[0] == 0xE0) {
@@ -111,45 +115,53 @@ int main() {
                 }
                 else if (buffer[0] == 0xEE) printf("RETURN FROM SUB\n");
                 mode = -1;
+                pc++;
                 break;
            case 0x60:
                 printf("v[%d] set to %02X\n", buffer2[0], buffer[0]);
                 v[buffer2[0]] = buffer[0];
                 mode = -1;
+                pc++;
                 break;
            case 0xA0: 
                 printf("I set to %02X\n",(buffer2[0]*0x100) + buffer[0]);
                 I = (buffer2[0]*0x100) + buffer[0];
                 mode = -1;
+                pc++;
                 break;
             case 0xD0: /* Dxyn */
                 // Start at Coordinates Vx, Vy
                 x = (0xF & buffer2[0]) / 8;
                 y = (0xF0 & buffer[0]) / 16;
                 N = 0xF & buffer[0];
-                printf("Draw sprite at %d and %d at height %d\n", v[x]/8, v[y], N);
-                printf("Array Index Position: %d\n", (v[y]*8)+(v[x]/8));
-                //printf("Sprite: %d", memory[]);
+                printf("Draw sprite at %d and %d at height %d\n", v[x], v[y], N);
                 for (int i = v[Y]; i < v[Y]+N; i++) {
-                    screen[(8*i)+(v[x]/8)] = memory[I] ^ screen[(8*i)+(v[x]/8)];
+                    int screenpos = (8*i)+(v[x]/8);  
+                    screen[screenpos]     = (memory[I] >> (v[x] % 8)) ^ screen[screenpos];
+                    screenpos = (8*i)+((v[x]+8)/8);
+                    screen[screenpos] = (memory[I] << (8 - (v[x] % 8))) ^ screen[screenpos];
                     I++;
                 }
-                //for (int j = v[y]; j < v[y]+N; j++) {
-                //    screen[(v[x]/8)+(j*8)] = memory[I] ^ screen[(v[x]/8)+(j*8)];
-                //    for (int i = v[x]; i < v[x]+8; i++) {
-                //        pixel_old = pixels[(j*width)+i];          
-                //        pixels[(j*width)+i] = ((pixel_old/99999) ^ (((memory[I] >> (7 - (i - v[x]))) & 1)))*99999;
-                //    }
-                //    I++;
-                //}
                 mode = -1;
+                pc++;
                 break;
            case 0x10:
                 printf("Jump to address %02X\n", ((0xF & buffer2[0])*256) + buffer[0]);
                 pc = ((0xF & buffer2[0])*256) + buffer[0];
                 mode = -1;
                 break;
+           case 0x70:
+                printf("Add %d to v[%d]\n", buffer[0], buffer2[0]);
+                v[buffer2[0]] += buffer[0];
+                mode = -1;
+                pc++;
+                break;
+           case 0x30:
+                printf("If v[%d] == %02X, skip next instruction\n", buffer[0] & 15, buffer2[0]);
+                pc += ((v[buffer[0]] & 15) == buffer2[0]) ? 2 : 1;
+                break;
            default: 
+                pc++;
                 break;
 
         
