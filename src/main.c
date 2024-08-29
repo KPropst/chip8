@@ -29,9 +29,9 @@ int main() {
    u_char buffer2[1];
    int16_t mode = -1;
 
-   //file = fopen("1-chip8-logo.ch8", "rb");
+   file = fopen("1-chip8-logo.ch8", "rb");
    //file = fopen("2-ibm-logo.ch8", "rb");
-   file = fopen("3-corax+.ch8", "rb");
+   //file = fopen("3-corax+.ch8", "rb");
    if (file == NULL) {
        printf("Error: Cannot open file\n");
        return 1;
@@ -97,13 +97,8 @@ int main() {
        }}
        switch (mode) {
            case -1:
-                if (buffer[0] == 0x00)                              {mode = 0x00;}
-                else if (buffer[0] >= 0x60 && buffer[0] <= 0x6F)    {mode = 0x60; buffer2[0] = buffer[0] - 0x60;}
-                else if (buffer[0] >= 0xA0 && buffer[0] <= 0xAF)    {mode = 0xA0; buffer2[0] = buffer[0] - 0xA0;}
-                else if (buffer[0] >= 0xD0 && buffer[0] <= 0xDF)    {mode = 0xD0; buffer2[0] = buffer[0] - 0xD0;}
-                else if (buffer[0] >= 0x10 && buffer[0] <= 0x1F)    {mode = 0x10; buffer2[0] = buffer[0] - 0x10;}
-                else if (buffer[0] >= 0x30 && buffer[0] <= 0x3F)    {mode = 0x30; buffer2[0] = buffer[0] - 0x30;}
-                else if (buffer[0] >= 0x70 && buffer[0] <= 0x7F)    {mode = 0x70; buffer2[0] = buffer[0] - 0x70;}
+                mode = 0xF0 & buffer[0];
+                buffer2[0] = buffer[0] - mode;
                 pc++;
                 break;
            case 0x00: 

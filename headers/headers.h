@@ -4,8 +4,9 @@
 #define X 0
 #define Y 1
 #define FILL 2
-#define WIDTH 64
-#define HEIGHT 32
+#define SCALE 2
+#define WIDTH 64*SCALE
+#define HEIGHT 32*SCALE
 #define CENTERX WIDTH/2
 #define CENTERY HEIGHT/2
 #define RAD(a) (a*(M_PI/180))
