@@ -51,8 +51,8 @@ int main() {
    unsigned int *pixels = window_surface->pixels;
    int width = window_surface->w, height = window_surface->h;
    
-   int x, y;
-   int N;
+   //int x, y;
+   //int N;
 
    Uint32 pixel = SDL_MapRGBA(window_surface->format, 200, 130, 100, 255);
    Uint8 r, g, b, a;
@@ -74,7 +74,6 @@ int main() {
       //  }
       //}
 
-   int new_pixel;
 
    /* Load ROM into memory */
    while (fread(buffer, sizeof(buffer), 1, file)) {
@@ -104,7 +103,7 @@ int main() {
            case 0x00: 
                 if (buffer[0] == 0xE0) {
                 printf("Clear Screen\n");
-                    for (int i = 0; i < 256; i++) {
+                    for (uint8_t i = 0; i < 255; i++) {
                         screen[i] = 0;
                     }
                 }
@@ -124,11 +123,10 @@ int main() {
                 mode = -1;
                 pc++;
                 break;
-            case 0xD0: /* Dxyn */
-                // Start at Coordinates Vx, Vy
-                x = (0xF & buffer2[0]) / 8;
-                y = (0xF0 & buffer[0]) / 16;
-                N = 0xF & buffer[0];
+            case 0xD0:{ /* Dxyn */
+                int8_t x = (0xF & buffer2[0]) / 8;
+                int8_t y = (0xF0 & buffer[0]) / 16;
+                int8_t N = 0xF & buffer[0];
                 printf("Draw sprite at %d and %d at height %d\n", v[x], v[y], N);
                 for (int i = v[Y]; i < v[Y]+N; i++) {
                     int screenpos = (8*i)+(v[x]/8);  
@@ -140,6 +138,7 @@ int main() {
                 mode = -1;
                 pc++;
                 break;
+           }
            case 0x10:
                 printf("Jump to address %02X\n", ((0xF & buffer2[0])*256) + buffer[0]);
                 pc = ((0xF & buffer2[0])*256) + buffer[0];
@@ -161,27 +160,23 @@ int main() {
 
         
        }
-       int j = 7;
-       int height_offset = 0;
-       int last_border = 0;
-       for (int i = 0; i < (WIDTH*HEIGHT); i+=SCALE) {
-            if (j == -1) j = 7;
-            if (last_border == WIDTH) {
-                height_offset += WIDTH;
-                i += WIDTH;
-                last_border = 0;
+       for (uint16_t x = 0; x < (WIDTH); x++) {
+            uint16_t pixel;
+            for (uint16_t y = 0; y < HEIGHT; y++) {
+                if (y % SCALE == 0) /* Done to prevent duplicate calculations */
+                    pixel = getpixel(screen, (x / (8*SCALE))+((y / SCALE)*8), (x/SCALE) % 8) * 99999;
+                else if (x % SCALE == 0)
+                    pixel = getpixel(screen, (x / (8*SCALE))+((y / SCALE)*8), (x/SCALE) % 8) * 99999;
+                pixels[x+(y*WIDTH)] = pixel;
             }
-            new_pixel = ((screen[(i-height_offset) / (8*SCALE)] >> j) & 1)*99999;
-            pixels[i] = new_pixel;
-            pixels[i+1] = new_pixel;
-            pixels[i+1+WIDTH] = new_pixel;
-            pixels[i+WIDTH] = new_pixel;
-            j--;
-            last_border+=SCALE;
        }
 
         SDL_UpdateWindowSurface(window);
         usleep(50000);
    }
    /* ------------------------------------------------------------ */
+}
+
+uint8_t getpixel(uint8_t array[], uint8_t x, uint8_t bit) {
+    return (array[x] >> (7 - bit)) & 1;
 }

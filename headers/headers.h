@@ -4,7 +4,7 @@
 #define X 0
 #define Y 1
 #define FILL 2
-#define SCALE 2
+#define SCALE 15 
 #define WIDTH 64*SCALE
 #define HEIGHT 32*SCALE
 #define CENTERX WIDTH/2
@@ -22,4 +22,8 @@
 #include <unistd.h>
 #define SCWIDTH  64
 #define SCHEIGHT 32
+
+
+uint8_t getpixel(uint8_t array[], uint8_t x, uint8_t bit);
+
 #endif // DEFINE_H_ 
