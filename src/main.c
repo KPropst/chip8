@@ -20,7 +20,7 @@ int main() {
                           0, 0, 0, 0, 0, 0, 0, 0, 
                           0, 0, 0, 0, 0, 0, 0, 0, 
                           0, 0, 0, 0, 0, 0, 0, 0, 
-                          0, 0, 0, 0, 0, 0, 0, 0, }; // Each bit represents an 8 pixel wide row on the framebuffer
+                          0, 0, 0, 0, 0, 0, 0, 0, }; // Each byte represents an 8 pixel wide row on the framebuffer
    /* ------------------------------------------------------------ */
    /* File Init */
    /* ------------------------------------------------------------ */
@@ -29,9 +29,10 @@ int main() {
    u_char buffer2[1];
    int16_t mode = -1;
 
-   file = fopen("1-chip8-logo.ch8", "rb");
+   //file = fopen("1-chip8-logo.ch8", "rb");
    //file = fopen("2-ibm-logo.ch8", "rb");
-   //file = fopen("3-corax+.ch8", "rb");
+   file = fopen("3-corax+.ch8", "rb");
+   //file = fopen("4-flags.ch8", "rb");
    if (file == NULL) {
        printf("Error: Cannot open file\n");
        return 1;
@@ -95,6 +96,7 @@ int main() {
            pixels = window_surface->pixels;
          }
        }}
+       printf("PC: 0x%02X       ", pc);
        switch (mode) {
            case -1:
                 mode = 0xF0 & buffer[0];
@@ -128,32 +130,25 @@ int main() {
                 pc++;
                 break;
             case 0xD0:{ /* Dxyn */
-                int8_t x = (0xF & buffer2[0]) / 8;
+                printf("DX: %02X\n", buffer2[0]);
+                int8_t x = (0xF & buffer2[0]);
                 int8_t y = (0xF0 & buffer[0]) / 16;
                 int8_t N = 0xF & buffer[0];
-                printf("Draw sprite at %d and %d at height %d\n", v[x], v[y], N);
-
+                printf("x: %02X y: %02X N: %02X\n", x, y, N);
+                printf("Dec:Draw sprite at %d and %d at height %d\n", v[x], v[y], N);
+                printf("Hex:Draw sprite at %02X and %02X at height %02X\n", v[x], v[y], N);
+                
                 // Input to Chip-8 Framebuffer
-                for (uint8_t i = v[Y]; i < v[Y]+N; i++) {
+                for (uint8_t i = v[y]; i < v[y]+N; i++) {
                     uint8_t framebufferpos = (8*i)+(v[x]/8);  
                     framebuffer[framebufferpos]     = (memory[I] >> (v[x] % 8)) ^ framebuffer[framebufferpos];
-                    framebufferpos = (8*i)+((v[x]+8)/8);
+                    //framebufferpos = (8*i)+((v[x]+8)/8);
+                    framebufferpos++;
                     framebuffer[framebufferpos] = (memory[I] << (8 - (v[x] % 8))) ^ framebuffer[framebufferpos];
                     I++;
                 }
                 updatescreen = true;
 
-                // Input to Window Framebuffer
-                //for (uint16_t x2 = x*SCALE; x2 < (x*SCALE)+(8*SCALE); x++) {
-                //     uint16_t pixel;
-                //     for (uint16_t y2 = y*SCALE; y2 < (y*SCALE)+(N*SCALE); y++) {
-                //         if (y2 % SCALE == 0) /* Done to prevent duplicate calculations */
-                //             pixel = getpixel(framebuffer, (x2 / (8*SCALE))+((y2 / SCALE)*8), (x2/SCALE) % 8) * 99999;
-                //         else if (x2 % SCALE == 0)
-                //             pixel = getpixel(framebuffer, (x2 / (8*SCALE))+((y2 / SCALE)*8), (x2/SCALE) % 8) * 99999;
-                //         pixels[x2+(y2*WIDTH)] = pixel;
-                //     }
-                //}
                 mode = -1;
                 pc++;
                 break;
@@ -195,6 +190,7 @@ int main() {
             updatescreen = false;
        }
 
+        printf("\n");
         SDL_UpdateWindowSurface(window);
         usleep(50000);
    }
