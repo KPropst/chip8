@@ -4,7 +4,7 @@
 #define X 0
 #define Y 1
 #define FILL 2
-#define SCALE 15 
+#define SCALE 16 
 #define WIDTH 64*SCALE
 #define HEIGHT 32*SCALE
 #define CENTERX WIDTH/2

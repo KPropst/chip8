@@ -9,6 +9,9 @@ int main() {
    uint8_t delay;
    uint8_t sound;
    uint16_t pc = 0x200; // Program Counter
+
+   uint16_t stack[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+   uint8_t sp;
    /* ------------------------------------------------------------ */
    /* Display */
    /* ------------------------------------------------------------ */
@@ -29,14 +32,18 @@ int main() {
    u_char buffer2[1];
    int16_t mode = -1;
 
+
    //file = fopen("1-chip8-logo.ch8", "rb");
    //file = fopen("2-ibm-logo.ch8", "rb");
-   file = fopen("3-corax+.ch8", "rb");
-   //file = fopen("4-flags.ch8", "rb");
+   //file = fopen("3-corax+.ch8", "rb");
+   file = fopen("4-flags.ch8", "rb");
+   //file = fopen("bad-apple-high-quality.ch8", "rb");
    if (file == NULL) {
        printf("Error: Cannot open file\n");
        return 1;
    }
+
+
 
    /* ------------------------------------------------------------ */
    /* SDL Init */
@@ -53,9 +60,6 @@ int main() {
    int width = window_surface->w, height = window_surface->h;
    bool updatescreen = false;
    
-   //int x, y;
-   //int N;
-
    Uint32 pixel = SDL_MapRGBA(window_surface->format, 200, 130, 100, 255);
    Uint8 r, g, b, a;
 
@@ -96,7 +100,6 @@ int main() {
            pixels = window_surface->pixels;
          }
        }}
-       printf("PC: 0x%02X       ", pc);
        switch (mode) {
            case -1:
                 mode = 0xF0 & buffer[0];
@@ -104,45 +107,54 @@ int main() {
                 pc++;
                 break;
            case 0x00: 
+                printf("PC: 0x%02X           ", pc);
                 if (buffer[0] == 0xE0) {
-                printf("Clear Screen\n");
-                    for (uint8_t i = 0; i < 255; i++) {
+                    printf("Clear Screen\n");
+                    for (uint8_t i = 0; i < 255; i++)
                         framebuffer[i] = 0;
-                    }
-                    for (int i = 0; i < WIDTH*HEIGHT; i++) {
+                    for (int i = 0; i < WIDTH*HEIGHT; i++)
                         pixels[i] = 0;
-                    }
+                    pc++;
                 }
-                else if (buffer[0] == 0xEE) printf("RETURN FROM SUB\n");
+                else if (buffer[0] == 0xEE) {
+                    printf("RETURN FROM SUB\n");
+                    sp--;
+                    pc = stack[sp]+1;
+                    stack[sp] = 0;
+                }
                 mode = -1;
-                pc++;
+                break;
+            case 0x20:
+                stack[sp] = pc;
+                pc = ((buffer2[0]*0x100) + buffer[0]);
+                sp++;
+                mode = -1;
                 break;
            case 0x60:
+                printf("PC: 0x%02X           ", pc);
                 printf("v[%d] set to %02X\n", buffer2[0], buffer[0]);
                 v[buffer2[0]] = buffer[0];
                 mode = -1;
                 pc++;
                 break;
            case 0xA0: 
+                printf("PC: 0x%02X           ", pc);
                 printf("I set to %02X\n",(buffer2[0]*0x100) + buffer[0]);
                 I = (buffer2[0]*0x100) + buffer[0];
                 mode = -1;
                 pc++;
                 break;
             case 0xD0:{ /* Dxyn */
-                printf("DX: %02X\n", buffer2[0]);
+                printf("PC: 0x%02X           ", pc);
                 int8_t x = (0xF & buffer2[0]);
                 int8_t y = (0xF0 & buffer[0]) / 16;
                 int8_t N = 0xF & buffer[0];
-                printf("x: %02X y: %02X N: %02X\n", x, y, N);
-                printf("Dec:Draw sprite at %d and %d at height %d\n", v[x], v[y], N);
-                printf("Hex:Draw sprite at %02X and %02X at height %02X\n", v[x], v[y], N);
+                printf("Draw sprite at %02X and %02X at height %02X\n", v[x], v[y], N);
                 
                 // Input to Chip-8 Framebuffer
                 for (uint8_t i = v[y]; i < v[y]+N; i++) {
                     uint8_t framebufferpos = (8*i)+(v[x]/8);  
                     framebuffer[framebufferpos]     = (memory[I] >> (v[x] % 8)) ^ framebuffer[framebufferpos];
-                    //framebufferpos = (8*i)+((v[x]+8)/8);
                     framebufferpos++;
                     framebuffer[framebufferpos] = (memory[I] << (8 - (v[x] % 8))) ^ framebuffer[framebufferpos];
                     I++;
@@ -154,21 +166,115 @@ int main() {
                 break;
            }
            case 0x10:
+                printf("PC: 0x%02X           ", pc);
                 printf("Jump to address %02X\n", ((0xF & buffer2[0])*256) + buffer[0]);
                 pc = ((0xF & buffer2[0])*256) + buffer[0];
                 mode = -1;
                 break;
            case 0x70:
+                printf("PC: 0x%02X           ", pc);
                 printf("Add %d to v[%d]\n", buffer[0], buffer2[0]);
                 v[buffer2[0]] += buffer[0];
                 mode = -1;
                 pc++;
                 break;
            case 0x30:
-                printf("If v[%d] == %02X, skip next instruction\n", buffer[0] & 15, buffer2[0]);
-                pc += ((v[buffer[0]] & 15) == buffer2[0]) ? 2 : 1;
+                printf("PC: 0x%02X           ", pc);
+                printf("If v[%d] == %02X, skip next instruction\n", buffer2[0] & 0xF, buffer[0]);
+                pc += ((v[buffer2[0] & 0xF]) == buffer[0]) ? 3 : 1;
+                mode = -1;
+                break;
+            case 0x40: 
+                printf("PC: 0x%02X           ", pc);
+                printf("If v[%d] != %02X, skip next instruction\n", buffer2[0] & 0xF, buffer[0]);
+                pc += ((v[buffer2[0] & 0xF]) != buffer[0]) ? 3 : 1;
+                mode = -1;
+                break;
+            case 0x50:
+                printf("PC: 0x%02X           ", pc);
+                printf("If v[%d] == v[%d], skip next instruction\n", buffer2[0] & 0xF, (buffer[0] & 0xF0) / 16);
+                pc += ((v[buffer2[0] & 0xF]) == (v[(buffer[0] & 0xF0) / 16])) ? 3 : 1;
+                mode = -1;
+                break;
+            case 0x80:{
+                int x = buffer2[0] & 0xF;
+                int y = (buffer[0] & 0xF0) / 16;
+                uint8_t Vx_copy;
+                switch (buffer[0] & 0xF) {
+                    case 0x0:
+                        v[x] = v[y];
+                        break;
+                    case 0x1:
+                        v[x] |= v[y];
+                        break;
+                    case 0x2:
+                        v[x] &= v[y];
+                        break;
+                    case 0x3:
+                        v[x] ^= v[y];
+                        break;
+                    case 0x4 :{
+                        Vx_copy = v[x];
+                        v[x] += v[y];
+                        v[0xF] = (v[x] < Vx_copy) ? 1 : 0;
+                        break;
+                    }
+                    case 0x5:{
+                        Vx_copy = v[x];
+                        v[x] -= v[y];
+                        v[0xF] = (Vx_copy < v[y]) ? 0 : 1;
+                        break;
+                    }
+                    case 0x6: 
+                        Vx_copy = v[x];
+                        v[x] = v[x] >> 1;
+                        v[0xF] = Vx_copy & 1;
+                        break;
+                    case 0x7: 
+                        Vx_copy = v[x];
+                        v[x] = v[y] - v[x];
+                        v[0xF] = (v[y] >= Vx_copy) ? 1 : 0;
+                        break;
+                    case 0xE: 
+                        Vx_copy = v[x];
+                        v[x] = v[x] << 1;
+                        v[0xF] = Vx_copy >> 7;
+                        break;
+                }
+                pc++;
+                mode = -1;
+                break;
+            }
+            case 0x90:
+                printf("PC: 0x%02X           ", pc);
+                printf("If v[%d] != v[%d], skip next instruction\n", buffer2[0] & 0xF, (buffer[0] & 0xF0) / 16);
+                pc += ((v[buffer2[0] & 0xF]) != (v[(buffer[0] & 0xF0) / 16])) ? 3 : 1;
+                mode = -1;
+                break;
+            case 0xF0:
+                switch (buffer[0]) {
+                    case 0x1E:
+                        I += v[buffer2[0] & 0xF];
+                        break;
+                    case 0x33: /* Store Vx as BCD Value */
+                        memory[I]   = v[(buffer2[0] & 0xF)] / 100;
+                        memory[I+1] = (v[(buffer2[0] & 0xF)] - (memory[I]*100)) / 10;
+                        memory[I+2] = v[(buffer2[0] & 0xF)] - (memory[I]*100) - (memory[I+1]*10);
+                        break;
+                    case 0x55:
+                        for (int i = 0; i <= (buffer2[0] & 0xF); i++)
+                            memory[I+i] = v[i] ;
+                        break;
+                    case 0x65:
+                        for (int i = 0; i <= (buffer2[0] & 0xF); i++)
+                            v[i] = memory[I+i];
+                        break;
+                }
+                pc++;
+                mode = -1;
                 break;
            default: 
+                printf("PC: 0x%02X           ", pc);
                 pc++;
                 break;
 
@@ -192,7 +298,7 @@ int main() {
 
         printf("\n");
         SDL_UpdateWindowSurface(window);
-        usleep(50000);
+        usleep(1000);
    }
    /* ------------------------------------------------------------ */
 }
